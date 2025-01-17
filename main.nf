@@ -8,8 +8,17 @@ params.input_dir = "${projectDir}/data"
 params.output_dir = "${projectDir}/output"
 
 // Import sub-workflows
-include { nimbus_wf } from './modules/nimbus_wrapper'
+// include { nimbus_wf } from './modules/nimbus_wrapper'
+include { supervised_wf } from './modules/fit_new_models'
 
+//Static Assests for beautification
+params.letterhead = "${projectDir}/images/BinFlow_banner.PNG"
+
+// Build Input List of Batches
+Channel.fromPath("${params.input_dir}/*/", type: 'file')
+			.ifEmpty { error "No files found in ${params.input_dir}" }
+			.set { inputTables }
+			
 
 // -------------------------------------- //
 // Function which prints help message text
@@ -24,10 +33,26 @@ Required Arguments:
   Input Data:
   --input_dir        Folder containing subfolders of QuPath's Quantification Exported Measurements,
                         each dir containing Quant files belonging to a common batch of images.
-    """.stripIndent()
+""".stripIndent()
 }
 
+// Accept any panel design, assume all input files have common markers
+process GETPANELDESIGN{
+    publishDir(
+        path: "${params.output_dir}/reports/",
+        pattern: "*.pdf"
+    )
 
+    input:
+    path(tables_collected)
+    
+    output:
+    path 'panel_design.csv', emit: paneldesignfile
+
+    script:
+    template 'analyze_panel_design.py'
+
+}
 
 
 
@@ -42,6 +67,12 @@ workflow {
         exit 1
     } else {
     
+        panel = GETPANELDESIGN(inputTables.collect())
+        // panel.paneldesignfile.view()
+        
+        sup = supervised_wf(inputTables.collect())
+        
+
     
     }
     
