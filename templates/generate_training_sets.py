@@ -109,12 +109,8 @@ def process_files(input_files, label_column, label_delimiter):
         print(f"Saved {filename}")
 
 if __name__ == "__main__":
-    #input_files = "${tables_collected}".split(' ')
-    #label_column = "${params.singleLabelColumn}"  # Replace with your column name containing the labels
-   
-    input_files = "SLIDE-1943_FullPanel_R12.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R0.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R5.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R15.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R3.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R9.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R1.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R10.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R11.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R4.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R13.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R6.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R17.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R2.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R16.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R8.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R14.ome.tiff_QUANT_Mod.tsv SLIDE-1943_FullPanel_R7.ome.tiff_QUANT_Mod.tsv".split(' ')
-    label_column = "OriginalClasses"  # Replace with your column name containing the labels
-   
+    input_files = "${tables_collected}".split(' ')
+    label_column = "${params.singleLabelColumn}"  # Replace with your column name containing the labels   
     label_delimiter = "|"  # Replace with your label delimiter
 
     process_files(input_files, label_column, label_delimiter)

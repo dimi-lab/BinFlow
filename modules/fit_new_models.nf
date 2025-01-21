@@ -25,7 +25,23 @@ process BINARY_MODEL_TRAINING{
     
     script:
     template 'fit_models.py'
+}
 
+process PREDICTIONS_FROM_BEST_MODEL{
+    publishDir(
+        path: "${params.output_dir}/reports/",
+        pattern: "*.pdf"
+    )
+
+    input:
+    path(best_model)
+    path(original_df)
+    
+    output: 
+    path("*_PRED.tsv"), emit: model
+    
+    script:
+    template 'best_model_predictions.py'
 }
 
 
@@ -41,4 +57,5 @@ workflow supervised_wf {
 	fitting = BINARY_MODEL_TRAINING(trainingMk.flatMap { it })
 	fitting.view()
 	
+	predict = PREDICTIONS_FROM_BEST_MODEL(fitting, tablesOfQuantification.flatMap { it })	
 }
