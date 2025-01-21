@@ -21,7 +21,7 @@ process BINARY_MODEL_TRAINING{
     path(training_df)
     
     output: 
-    path("*_model.pkl"), emit: model
+    path("*best_model*.pkl"), emit: model
     
     script:
     template 'fit_models.py'

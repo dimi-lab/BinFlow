@@ -15,6 +15,14 @@ from sklearn.impute import SimpleImputer
 from fpdf import FPDF
 
 def preprocess_data(df, label_column='key_label'):
+    # Strip whitespace from column names
+    df.columns = df.columns.str.strip()
+
+    # Check for alternate column names
+    if 'key_label' not in df.columns:
+        raise KeyError(f"'key_label' column not found. Available columns: {list(df.columns)}")
+
+
     # Preprocesses the DataFrame for machine learning.
     df[label_column] = df[label_column].fillna("Unknown")
     df[label_column] = df[label_column].astype(str).str.strip()
@@ -84,11 +92,14 @@ def evaluate_models(models, X_train, X_test, y_train, y_test, nom):
     return results
 
 def extract_marker(filename):
-    match = re.match(r"training_(\w+)\.tsv", filename)
-    return match.group(1) if match else "NA"
+    parts = filename.split("_")
+    if len(parts) > 1 and parts[0] == "training":
+        return parts[1].split(".")[0]  # Assuming extension is separated by "."
+    else:
+        return "NA"
 
 if __name__ == "__main__":
-    df = pd.read_csv("${training_df}")
+    df = pd.read_csv("${training_df}", sep="\t")
     lblName = extract_marker("${training_df}")
     X, y = preprocess_data(df)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)

@@ -61,20 +61,19 @@ def main(model_path, input_data_path, output_path):
     save_predictions(df, predictions, output_path)
 
 def extract_marker(filename):
-  match = re.match(r"(\w+)_best_model_(\w+)\.pkl", filename)
-  if match:
-    return match.group(2)
-  else:
-    return "NA"
+    parts = filename.split("_")
+    if len(parts) >= 4 and parts[1] == "best":
+        return parts[3].split(".")[0]  # Assuming marker is between "best_model" and extension
+    else:
+        return "NA"
     
-
 # Run script
 if __name__ == "__main__":
     # File paths
     model_path = "${best_model}"  # Update with your best model file
     input_data_path = "${original_df}"  # Path to the new dataset
     lblName = extract_marker("${best_model}")
-    output_path = f"predictions_{lblName}_output.tsv"  # Path to save predictions
+    output_path = f"predictions_{lblName}_PRED.tsv"  # Path to save predictions
     
     main(model_path, input_data_path, output_path)
 
