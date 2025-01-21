@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os
+import os, time
 import pandas as pd
 import matplotlib.pyplot as plt
 from fpdf import FPDF

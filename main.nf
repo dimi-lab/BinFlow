@@ -37,7 +37,7 @@ Required Arguments:
 }
 
 // Accept any panel design, assume all input files have common markers
-process GETPANELDESIGN{
+process REPORT_PANEL_DESIGN{
     publishDir(
         path: "${params.output_dir}/reports/",
         pattern: "*.pdf"
@@ -46,9 +46,6 @@ process GETPANELDESIGN{
     input:
     path(tables_collected)
     
-    output:
-    path 'panel_design.csv', emit: paneldesignfile
-
     script:
     template 'analyze_panel_design.py'
 
@@ -67,8 +64,7 @@ workflow {
         exit 1
     } else {
     
-        panel = GETPANELDESIGN(inputTables.collect())
-        // panel.paneldesignfile.view()
+        REPORT_PANEL_DESIGN(inputTables.collect())
         
         sup = supervised_wf(inputTables.collect())
         
