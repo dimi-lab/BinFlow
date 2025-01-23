@@ -6,6 +6,9 @@ results
 work
 output
 
+## Run info files:
+binflow_input_data.tsv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

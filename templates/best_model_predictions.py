@@ -31,8 +31,8 @@ def make_predictions(model, data):
 # Save the output with only 'Centroid' columns and predictions
 def save_predictions(df, predictions, output_path):
     # Select columns containing "Centroid"
-    centroid_columns = [col for col in df.columns if "Centroid" in col]
-    df_output = df[centroid_columns].copy()
+    centroid_and_image_columns = [col for col in df.columns if "centroid" in col.lower() or "image" in col.lower()]
+    df_output = df[centroid_and_image_columns].copy()
     
     # Add predictions as a new column
     df_output['Predictions'] = predictions
@@ -72,8 +72,9 @@ if __name__ == "__main__":
     # File paths
     model_path = "${best_model}"  # Update with your best model file
     input_data_path = "${original_df}"  # Path to the new dataset
+    preFh = os.path.basename(input_data_path)
     lblName = extract_marker("${best_model}")
-    output_path = f"predictions_{lblName}_PRED.tsv"  # Path to save predictions
+    output_path = f"{preFh}_predictions_{lblName}_PRED.tsv"  # Path to save predictions
     
     main(model_path, input_data_path, output_path)
 

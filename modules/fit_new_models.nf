@@ -14,7 +14,8 @@ process GET_SINGLE_MARKER_TRAINING_DF {
 process BINARY_MODEL_TRAINING{
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*.pdf"
+        pattern: "*.pdf",
+        mode: "copy"
     )
 
     input:
@@ -30,8 +31,15 @@ process BINARY_MODEL_TRAINING{
 process PREDICTIONS_FROM_BEST_MODEL{
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*.pdf"
+        pattern: "*.pdf",
+        mode: "copy"
     )
+    publishDir(
+        path: "${params.output_dir}/classifications/",
+        pattern: "*_PRED.tsv",
+        mode: "copy"
+    )
+
 
     input:
     path(best_model)
@@ -52,10 +60,12 @@ workflow supervised_wf {
 	
 	main:
 	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification)
-	trainingMk.view()
+	//trainingMk.view()
 	
 	fitting = BINARY_MODEL_TRAINING(trainingMk.flatMap { it })
-	fitting.view()
+	//fitting.view()
 	
-	predict = PREDICTIONS_FROM_BEST_MODEL(fitting, tablesOfQuantification.flatMap { it })	
+	predict = PREDICTIONS_FROM_BEST_MODEL(fitting, tablesOfQuantification.flatMap { it })
+	
+	
 }
