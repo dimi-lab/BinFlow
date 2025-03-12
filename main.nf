@@ -51,6 +51,26 @@ process REPORT_PANEL_DESIGN{
 
 }
 
+process GET_ALL_LABEL_COUNTS{
+    publishDir(
+        path: "${params.output_dir}/reports/",
+        pattern: "*.tsv"
+    )
+
+    input:
+    path(tables_collected)
+    
+    output: 
+    path("*.tsv"), emit: counts
+    
+    script:
+    template 'binary_counter.py'
+
+}
+
+
+//process BOOST_NEGATIVE_LABELS{
+//}
 
 
 // Main workflow
@@ -64,9 +84,11 @@ workflow {
         exit 1
     } else {
     
-        REPORT_PANEL_DESIGN(inputTables.collect())
+        //REPORT_PANEL_DESIGN(inputTables.collect())
+        //inputTables.view()
+        GET_ALL_LABEL_COUNTS(inputTables.collect())
         
-        sup = supervised_wf(inputTables.collect())
+        //sup = supervised_wf(inputTables.collect())
         
 
     
