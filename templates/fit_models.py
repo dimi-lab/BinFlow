@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pandas as pd
-import os
+import os, sys
 import re
 import pickle
 from sklearn.model_selection import train_test_split
@@ -102,6 +102,10 @@ if __name__ == "__main__":
     df = pd.read_csv("${training_df}", sep="\t")
     lblName = extract_marker("${training_df}")
     X, y = preprocess_data(df)
+    if len(y.unique()) < 2:
+        print(f"Error: Target variable 'y' must contain at least two unique values. {y.unique()} Exiting.")
+        sys.exit(0)
+    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     preprocessor = build_pipelines()
     models = build_models(preprocessor)
