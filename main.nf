@@ -54,23 +54,46 @@ process REPORT_PANEL_DESIGN{
 process GET_ALL_LABEL_COUNTS{
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*.tsv"
+        pattern: "*_counts.tsv"
     )
 
     input:
     path(tables_collected)
+    val(output_label_file)
     
     output: 
-    path("*.tsv"), emit: counts
+    path("*.tsv"), emit: count
     
     script:
     template 'binary_counter.py'
 
 }
 
+process BOOST_NEGATIVE_LABELS{
+    input:
+    path(quant_table)
+    path(counts_tsv)
+    
+    output: 
+    path("*_mod.tsv"), emit: quant_files
+    
+    script:
+    template 'relabel_synthetic_negatives.py'
+}
 
-//process BOOST_NEGATIVE_LABELS{
-//}
+process GET_ALL_LABEL_RECOUNTS{
+    publishDir(
+        path: "${params.output_dir}/reports/",
+        pattern: "*_counts.tsv"
+    )
+    
+    input:
+    path(tables_collected)
+    val(output_label_file)
+        
+    script:
+    template 'binary_counter.py'
+}
 
 
 // Main workflow
@@ -84,11 +107,15 @@ workflow {
         exit 1
     } else {
     
-        //REPORT_PANEL_DESIGN(inputTables.collect())
+        REPORT_PANEL_DESIGN(inputTables.collect())
         //inputTables.view()
-        GET_ALL_LABEL_COUNTS(inputTables.collect())
+        label_summary = GET_ALL_LABEL_COUNTS(inputTables.collect(), "label_counts.tsv")
         
-        //sup = supervised_wf(inputTables.collect())
+        modTables = BOOST_NEGATIVE_LABELS(inputTables, label_summary.count)
+        
+        GET_ALL_LABEL_RECOUNTS(modTables.collect(), "ammended_counts.tsv")
+        
+        sup = supervised_wf(modTables.quant_files.collect())
         
 
     

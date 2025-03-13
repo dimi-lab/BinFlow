@@ -40,7 +40,6 @@ process PREDICTIONS_FROM_BEST_MODEL{
         mode: "copy"
     )
 
-
     input:
     path(best_model)
     path(original_df)
@@ -65,7 +64,10 @@ workflow supervised_wf {
 	fitting = BINARY_MODEL_TRAINING(trainingMk.flatMap { it })
 	//fitting.view()
 	
-	predict = PREDICTIONS_FROM_BEST_MODEL(fitting, tablesOfQuantification.flatMap { it })
+	pairs = fitting.combine(tablesOfQuantification.flatMap { it })
+    predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[0] }, pairs.map { it[1] })
+	
+	//predict = PREDICTIONS_FROM_BEST_MODEL(fitting, tablesOfQuantification.flatMap { it })
 	
 	
 }

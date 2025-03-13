@@ -5,7 +5,7 @@ import pandas as pd
 
 # --- Configuration ---
 file_list = "${tables_collected}".split(' ')
-output_file = "label_counts.tsv"  # Output TSV file
+output_file = "${output_label_file}"  # Output TSV file
 label_column = "${params.singleLabelColumn}"  # Replace with your column name containing the labels   
 
 data = []  # List to store the count dictionaries for each file
