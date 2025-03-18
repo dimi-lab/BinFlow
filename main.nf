@@ -95,6 +95,32 @@ process GET_ALL_LABEL_RECOUNTS{
     template 'binary_counter.py'
 }
 
+// Produce Batch based normalization - boxcox
+process BOXCOX_TRANSFORM {
+	executor "slurm"
+    memory "60G"
+    queue "cpu-short"
+    time "24:00:00"
+	
+	publishDir(
+        path: "${params.output_dir}/normalization_reports",
+        pattern: "*.pdf",
+        mode: "copy"
+    )
+	
+	input:
+	path(quant_table)
+	
+	output:
+    path("*_mod.tsv"), emit: quant_files
+	path("boxcox_*.pdf")
+	
+	script:
+	template 'boxcox_transformer.py'
+
+}
+
+
 
 // Main workflow
 workflow {
@@ -115,9 +141,11 @@ workflow {
         
         GET_ALL_LABEL_RECOUNTS(modTables.collect(), "ammended_counts.tsv")
         
-        sup = supervised_wf(modTables.quant_files.collect())
+        if (params.use_boxcox_transformation) {
+        	modTables = BOXCOX_TRANSFORM(modTables.quant_files)
+        }
         
-
+        sup = supervised_wf(modTables.quant_files.collect())
     
     }
     
