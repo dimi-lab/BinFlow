@@ -13,6 +13,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.impute import SimpleImputer
 from fpdf import FPDF
+from pprint import pprint
 
 def preprocess_data(df, label_column='key_label'):
     # Strip whitespace from column names
@@ -26,13 +27,12 @@ def preprocess_data(df, label_column='key_label'):
     # Preprocesses the DataFrame for machine learning.
     df[label_column] = df[label_column].fillna("Unknown")
     df[label_column] = df[label_column].astype(str).str.strip()
+    df = df[df.columns.drop(list(df.filter(regex='(Centroid|Binary|Classification|Name|Image|ROI)')))].fillna(0)
     X = df.drop(columns=[label_column])
     y = df[label_column]
     return X, y
 
-def build_pipelines():
-    numeric_features = ['Centroid X µm', 'Centroid Y µm']
-    categorical_features = ['Image', 'ROI']
+def build_pipelines(numeric_features):
     numeric_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='mean')),
         ('scaler', StandardScaler())
@@ -43,8 +43,7 @@ def build_pipelines():
     ])
     preprocessor = ColumnTransformer(
         transformers=[
-            ('num', numeric_transformer, numeric_features),
-            ('cat', categorical_transformer, categorical_features)
+            ('num', numeric_transformer, numeric_features)
         ]
     )
     return preprocessor
@@ -99,15 +98,19 @@ def extract_marker(filename):
         return "NA"
 
 if __name__ == "__main__":
-    df = pd.read_csv("${training_df}", sep="\t")
-    lblName = extract_marker("${training_df}")
+    #df = pd.read_csv("${training_df}", sep="\t")
+    #lblName = extract_marker("${training_df}")
+    df = pd.read_csv("training_Her2.tsv", sep="\t")
+    lblName = extract_marker("training_Her2.tsv")
     X, y = preprocess_data(df)
     if len(y.unique()) < 2:
         print(f"Error: Target variable 'y' must contain at least two unique values. {y.unique()} Exiting.")
         sys.exit(0)
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    preprocessor = build_pipelines()
+    mark_cols = [col for col in df.columns if lblName in col]
+    preprocessor = build_pipelines(mark_cols)
     models = build_models(preprocessor)
     results = evaluate_models(models, X_train, X_test, y_train, y_test, lblName)
+    pprint(results)
 

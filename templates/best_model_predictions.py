@@ -63,20 +63,21 @@ def main(model_path, input_data_path, output_path):
 def extract_marker(filename):
     parts = filename.split("_")
     if len(parts) >= 4 and parts[1] == "best":
-        return parts[3].split(".")[0]  # Assuming marker is between "best_model" and extension
+        return parts[3].split("\\.")[0]  # Assuming marker is between "best_model" and extension
     else:
         return "NA"
     
 # Run script
 if __name__ == "__main__":
     # File paths
-    model_path = "${best_model}"  # Update with your best model file
-    input_data_path = "${original_df}"  # Path to the new dataset
+    #model_path = "${best_model}"  # Update with your best model file
+    #input_data_path = "${original_df}"  # Path to the new dataset
+    model_path = "ExtraTrees_best_model_Her2.pkl"  # Update with your best model file
+    input_data_path = "SLIDE-3000_boxcox_mod.tsv"  # Path to the new dataset
     preFh = os.path.basename(input_data_path)
-    lblName = extract_marker("${best_model}")
+    lblName = extract_marker(model_path)
+    print(f"On Marker: {lblName}")
     output_path = f"{preFh}_predictions_{lblName}_PRED.tsv"  # Path to save predictions
-    
-
-    
+   
     main(model_path, input_data_path, output_path)
 
