@@ -51,7 +51,7 @@ def process_files(input_files, label_column, label_delimiter):
         df = df[df[label_column].notna()]
 
         # Extract unique labels ending in "+" or "-" and count occurrences
-        df["labels"] = df[label_column].str.split(label_delimiter)
+        df["labels"] = df[label_column].fillna("").astype(str).str.split(label_delimiter)
         all_labels = [label for labels in df["labels"] for label in labels if label.endswith(("+", "-"))]
         unique_labels = set(all_labels)
 

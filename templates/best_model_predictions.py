@@ -13,13 +13,10 @@ def load_model(model_path):
 # Prepare the data for prediction
 def prepare_data(df, model):
     if isinstance(model, Pipeline):
-        # Extract the preprocessor from the pipeline
         preprocessor = model.named_steps['preprocessor']
-        feature_columns = preprocessor.transformers_[0][2] + preprocessor.transformers_[1][2]
+        feature_columns = sum([list(t[2]) for t in preprocessor.transformers_ if len(t) > 2], [])
     else:
         raise ValueError("Model is not a Pipeline with a preprocessor.")
-    
-    # Select only the required columns
     df = df[feature_columns]
     return df
 
@@ -70,10 +67,9 @@ def extract_marker(filename):
 # Run script
 if __name__ == "__main__":
     # File paths
-    #model_path = "${best_model}"  # Update with your best model file
-    #input_data_path = "${original_df}"  # Path to the new dataset
-    model_path = "ExtraTrees_best_model_Her2.pkl"  # Update with your best model file
-    input_data_path = "SLIDE-3000_boxcox_mod.tsv"  # Path to the new dataset
+    model_path = "${best_model}"  # Update with your best model file
+    input_data_path = "${original_df}"  # Path to the new dataset
+    
     preFh = os.path.basename(input_data_path)
     lblName = extract_marker(model_path)
     print(f"On Marker: {lblName}")

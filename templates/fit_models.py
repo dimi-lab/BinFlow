@@ -98,10 +98,8 @@ def extract_marker(filename):
         return "NA"
 
 if __name__ == "__main__":
-    #df = pd.read_csv("${training_df}", sep="\t")
-    #lblName = extract_marker("${training_df}")
-    df = pd.read_csv("training_Her2.tsv", sep="\t")
-    lblName = extract_marker("training_Her2.tsv")
+    df = pd.read_csv("${training_df}", sep="\t")
+    lblName = extract_marker("${training_df}")
     X, y = preprocess_data(df)
     if len(y.unique()) < 2:
         print(f"Error: Target variable 'y' must contain at least two unique values. {y.unique()} Exiting.")

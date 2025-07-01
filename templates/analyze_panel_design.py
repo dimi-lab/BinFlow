@@ -26,7 +26,7 @@ def generate_histograms_and_stats(tsv_files, output_pdf):
             continue
 
         file_basename = os.path.basename(file).replace(".tsv", "")
-        markers = [col for col in numeric_df.columns if "Median" in col]
+        markers = [col for col in numeric_df.columns if "Median" in col and ("+" in col or "-" in col)]
 
         if not markers:
             print(f"No markers found in {file}.")
@@ -108,3 +108,4 @@ if __name__ == "__main__":
     output_pdf = "Marker_Analysis_Report.pdf"
     generate_histograms_and_stats(tsv_files, output_pdf)
 
+    
