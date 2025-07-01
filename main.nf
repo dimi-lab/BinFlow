@@ -2,6 +2,8 @@
 
 // Using DSL-2
 nextflow.enable.dsl=2
+println "Active profile: ${workflow.profile}"
+
 
 // All of the default parameters are being set in `nextflow.config`
 params.input_dir = "${projectDir}/data"
@@ -51,22 +53,15 @@ process REPORT_PANEL_DESIGN{
 
 }
 
-process GET_ALL_LABEL_COUNTS{
-    publishDir(
-        path: "${params.output_dir}/reports/",
-        pattern: "*_counts.tsv"
-    )
-
+process ALL_LABEL_COUNTS{
     input:
     path(tables_collected)
-    val(output_label_file)
     
     output: 
-    path("*.tsv"), emit: count
+    path("label_counts.tsv"), emit: count
     
     script:
     template 'binary_counter.py'
-
 }
 
 process BOOST_NEGATIVE_LABELS{
@@ -84,24 +79,21 @@ process BOOST_NEGATIVE_LABELS{
 process GET_ALL_LABEL_RECOUNTS{
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*_counts.tsv"
+        pattern: "*_table.tsv"
     )
     
     input:
     path(tables_collected)
-    val(output_label_file)
+
+    output: 
+    path("*_table.tsv"), emit: count
         
     script:
-    template 'binary_counter.py'
+    template 'binary_table.py'
 }
 
 // Produce Batch based normalization - boxcox
 process BOXCOX_TRANSFORM {
-	executor "slurm"
-    memory "60G"
-    queue "cpu-short"
-    time "24:00:00"
-	
 	publishDir(
         path: "${params.output_dir}/normalization_reports",
         pattern: "*.pdf",
@@ -120,7 +112,23 @@ process BOXCOX_TRANSFORM {
 
 }
 
+process CHECK_LABEL_COUNTS {
+    input:
+    path(label_counts)
 
+    output:
+    val(true), emit: labels_ok
+
+    script:
+    """
+    total=\$(awk 'NR>1 {sum+=\$2} END {print sum+0}' ${label_counts})
+    if [[ \$total -eq 0 ]]; then
+        echo 'ERROR: No labels found in any input file. Exiting workflow.'
+        exit 99
+    fi
+    echo true
+    """
+}
 
 // Main workflow
 workflow {
@@ -132,21 +140,18 @@ workflow {
         // Exit out and do not run anything else
         exit 1
     } else {
-    
+        label_summary = ALL_LABEL_COUNTS(inputTables.collect())
+        CHECK_LABEL_COUNTS(label_summary.count) // This will exit if no labels are found
+        
         REPORT_PANEL_DESIGN(inputTables.collect())
-        //inputTables.view()
-        label_summary = GET_ALL_LABEL_COUNTS(inputTables.collect(), "label_counts.tsv")
-        
-        modTables = BOOST_NEGATIVE_LABELS(inputTables, label_summary.count)
-        
-        GET_ALL_LABEL_RECOUNTS(modTables.collect(), "ammended_counts.tsv")
+        recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
+        modTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
         
         if (params.use_boxcox_transformation) {
         	modTables = BOXCOX_TRANSFORM(modTables.quant_files)
         }
         
         sup = supervised_wf(modTables.quant_files.collect())
-    
     }
     
     
