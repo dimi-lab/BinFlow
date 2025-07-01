@@ -4,7 +4,7 @@ process GET_SINGLE_MARKER_TRAINING_DF {
     path(tables_collected)
     
     output:
-    path 'training_*.tsv', emit: trainingdata
+    path 'training_*.tsv', emit: trainingdata, optional: true
 
     script:
     template 'generate_training_sets.py'
@@ -58,7 +58,7 @@ workflow supervised_wf {
     tablesOfQuantification
 	
 	main:
-	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification)
+	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification.flatten())
 	//trainingMk.view()
 	
 	fitting = BINARY_MODEL_TRAINING(trainingMk.flatMap { it })
