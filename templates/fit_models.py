@@ -18,12 +18,9 @@ from pprint import pprint
 def preprocess_data(df, label_column='key_label'):
     # Strip whitespace from column names
     df.columns = df.columns.str.strip()
-
     # Check for alternate column names
     if 'key_label' not in df.columns:
         raise KeyError(f"'key_label' column not found. Available columns: {list(df.columns)}")
-
-
     # Preprocesses the DataFrame for machine learning.
     df[label_column] = df[label_column].fillna("Unknown")
     df[label_column] = df[label_column].astype(str).str.strip()
@@ -100,15 +97,23 @@ def extract_marker(filename):
 if __name__ == "__main__":
     df = pd.read_csv("${training_df}", sep="\t")
     lblName = extract_marker("${training_df}")
+    print(f"Label = {lblName}")
     X, y = preprocess_data(df)
     if len(y.unique()) < 2:
         print(f"Error: Target variable 'y' must contain at least two unique values. {y.unique()} Exiting.")
         sys.exit(0)
-    
+    if X.shape[1] == 0:
+        print("Error: No features available for training after preprocessing. Exiting.")
+        sys.exit(1)
+    print(f"X Shape = {X.shape}")
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    mark_cols = [col for col in df.columns if lblName in col]
-    preprocessor = build_pipelines(mark_cols)
+    print(f"X_train Shape = {X_train.shape}")
+    numeric_cols = X_train.columns.tolist()
+    print(f"Features for Pipeline = {', '.join(numeric_cols)}")
+    preprocessor = build_pipelines(numeric_cols)
     models = build_models(preprocessor)
     results = evaluate_models(models, X_train, X_test, y_train, y_test, lblName)
     pprint(results)
+
 

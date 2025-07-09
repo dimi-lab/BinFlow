@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import os
+import random
+import string
 import pandas as pd
 
 def filter_and_reduce_labels(df, label_column, label_prefix):
@@ -101,10 +103,13 @@ def process_files(input_files, label_column, label_delimiter):
     summary_df.to_csv("label_summary.tsv", sep="\t", index=False)
     print("Label summary saved to label_summary.tsv")
     
+    # Generate a random 8-character string for this run
+    rand_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
     # Write the child table to a TSV file
     # Save each merged table to a file
     for label, table in label_tables.items():
-        filename = f"training_{label}.tsv"
+        filename = f"training_{label}_{rand_suffix}.tsv"
         table.to_csv(filename, sep='\t', index=False)
         print(f"Saved {filename}")
 
