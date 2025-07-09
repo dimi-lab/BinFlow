@@ -94,22 +94,25 @@ process GET_ALL_LABEL_RECOUNTS{
 
 // Produce Batch based normalization - boxcox
 process BOXCOX_TRANSFORM {
-	publishDir(
+    publishDir(
         path: "${params.output_dir}/normalization_reports",
         pattern: "*.pdf",
         mode: "copy"
     )
-	
-	input:
-	path(quant_table)
-	
-	output:
+    input:
+    path(quant_table)
+    output:
     path("*_mod.tsv"), emit: quant_files
-	path("boxcox_*.pdf")
-	
-	script:
-	template 'boxcox_transformer.py'
-
+    path("boxcox_*.pdf")
+    script:
+    """
+    boxcox_transformer.py \
+      ${quant_table} \
+      ${params.qupath_object_type} \
+      ${params.nucleus_marker} \
+      ${params.transformation_group_by_column} \
+      ${params.letterhead}
+    """
 }
 
 process CHECK_LABEL_COUNTS {
