@@ -7,7 +7,9 @@ process GET_SINGLE_MARKER_TRAINING_DF {
     path 'training_*.tsv', emit: trainingdata, optional: true
 
     script:
-    template 'generate_training_sets.py'
+    """
+    generate_training_sets.py ${params.singleLabelColumn} "|" ${tables_collected}
+    """
 }
 
 // Accept any panel design, assume all input files have common markers
@@ -25,7 +27,9 @@ process BINARY_MODEL_TRAINING{
     path("*best_model*.pkl"), emit: model, optional: true
     
     script:
-    template 'fit_models.py'
+    """
+    fit_models.py ${training_df}
+    """
 }
 
 process PREDICTIONS_FROM_BEST_MODEL{
@@ -43,7 +47,9 @@ process PREDICTIONS_FROM_BEST_MODEL{
     tuple val(original_df.baseName), path("*_PRED.tsv"), emit: classifications
     
     script:
-    template 'best_model_predictions.py'
+    """
+    best_model_predictions.py ${best_model} ${original_df}
+    """
 }
 
 process MERGE_BY_PRED_IMAGE {
@@ -73,7 +79,9 @@ process MERGE_TRAINING_BY_MARKER {
     path("${mark}_all.tsv"), emit: merged
 
     script:
-    template 'merge_training.py'
+    """
+    merge_training.py ${mark}_all.tsv
+    """
 }
 
 process REPORT_PER_IMAGE {
@@ -121,9 +129,10 @@ workflow supervised_wf {
 
     merged_training = MERGE_TRAINING_BY_MARKER(grouped_training)
 	fitting = BINARY_MODEL_TRAINING(merged_training)
-	fitting.view()
+	//fitting.view()
 	
 	pairs = fitting.combine(tablesOfQuantification.flatMap { it })
+    //pairs.view()
     // pairs is a tuple of (best_model, original_df)
     predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[0] }, pairs.map { it[1] })
 
@@ -132,7 +141,7 @@ workflow supervised_wf {
 	//merged_input.view()
 
     merged = MERGE_BY_PRED_IMAGE(merged_input)
-	merged.view()
+	//merged.view()
     
     report = REPORT_PER_IMAGE(merged)
 }

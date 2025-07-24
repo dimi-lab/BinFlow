@@ -39,18 +39,21 @@ Required Arguments:
 }
 
 // Accept any panel design, assume all input files have common markers
-process REPORT_PANEL_DESIGN{
+process REPORT_PANEL_DESIGN {
     publishDir(
         path: "${params.output_dir}/reports/",
         pattern: "*.pdf"
     )
-
     input:
     path(tables_collected)
-    
-    script:
-    template 'analyze_panel_design.py'
 
+    output:
+    path("*.pdf")
+
+    script:
+    """
+    analyze_panel_design.py ${params.letterhead} ${tables_collected}
+    """
 }
 
 process ALL_LABEL_COUNTS{
@@ -61,7 +64,9 @@ process ALL_LABEL_COUNTS{
     path("label_counts.tsv"), emit: count
     
     script:
-    template 'binary_counter.py'
+    """
+    binary_counter.py label_counts.tsv ${params.singleLabelColumn} ${tables_collected}
+    """
 }
 
 process BOOST_NEGATIVE_LABELS{
@@ -73,7 +78,16 @@ process BOOST_NEGATIVE_LABELS{
     path("*_mod.tsv"), emit: quant_files
     
     script:
-    template 'relabel_synthetic_negatives.py'
+    """
+    relabel_synthetic_negatives.py \
+      ${quant_table} \
+      ${counts_tsv} \
+      ${params.huerustic_negative_n_cells} \
+      ${params.huerustic_negative_percentile} \
+      ${params.huerustic_negative_add_only_missing} \
+      ${params.singleLabelColumn} \
+      "${params.keptContextColumns.join(',')}"
+    """
 }
 
 process GET_ALL_LABEL_RECOUNTS{
@@ -89,7 +103,9 @@ process GET_ALL_LABEL_RECOUNTS{
     path("*_table.tsv"), emit: count
         
     script:
-    template 'binary_table.py'
+    """
+    binary_table.py perlabel_table.tsv ${params.singleLabelColumn} ${tables_collected}
+    """
 }
 
 // Produce Batch based normalization - boxcox
@@ -101,9 +117,11 @@ process BOXCOX_TRANSFORM {
     )
     input:
     path(quant_table)
+
     output:
-    path("*_mod.tsv"), emit: quant_files
+    path("*.tsv"), emit: quant_files
     path("boxcox_*.pdf")
+
     script:
     """
     boxcox_transformer.py \
@@ -111,7 +129,8 @@ process BOXCOX_TRANSFORM {
       ${params.qupath_object_type} \
       ${params.nucleus_marker} \
       ${params.transformation_group_by_column} \
-      ${params.letterhead}
+      ${params.letterhead} \
+      ${params.hasFOV}
     """
 }
 
@@ -146,17 +165,18 @@ workflow {
         label_summary = ALL_LABEL_COUNTS(inputTables.collect())
         CHECK_LABEL_COUNTS(label_summary.count) // This will exit if no labels are found
         
-        REPORT_PANEL_DESIGN(inputTables.collect())
+        //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
         modTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
-        
+        modTables = modTables.flatten()
+        //modTables.view()
+
         if (params.use_boxcox_transformation) {
-        	modTables = BOXCOX_TRANSFORM(modTables.quant_files)
+            modTables = BOXCOX_TRANSFORM(modTables)
         }
         
-        sup = supervised_wf(modTables.quant_files.collect())
+        supervised_wf(modTables.quant_files)
     }
-    
     
 }
 
