@@ -13,8 +13,8 @@ from scipy.stats import boxcox
 import sys
 
 # --- Argument parsing ---
-if len(sys.argv) != 6:
-    print("Usage: boxcox_transformer.py <quant_table> <qupath_object_type> <nucleus_marker> <grouping_column> <letterhead>")
+if len(sys.argv) != 7:
+    print("Usage: boxcox_transformer.py <quant_table> <qupath_object_type> <nucleus_marker> <grouping_column> <letterhead> <hasFOV>")
     sys.exit(1)
 
 quant_table = sys.argv[1]
@@ -22,9 +22,10 @@ quantType = sys.argv[2]
 nucMark = sys.argv[3]
 grouping_column = sys.argv[4]
 letterhead = sys.argv[5]
+hasFOV = sys.argv[6].lower() == "true"
 
-plotFraction = 0.25
-hasFOV = True
+#plotFraction = 0.25
+plotFraction = 0.05  # Try 5% for large files
 
 def create_title(title, pdf):
     pdf.set_font('Helvetica', 'b', 20)
@@ -63,9 +64,9 @@ def collect_and_transform(df, batchName):
 
     # Select features for BoxCox
     if quantType == 'CellObject':
-        df_batching2 = smTble.filter(regex='Cell: Mean', axis=1)
+        df_batching2 = smTble.filter(regex='Cell: (Mean|Median)', axis=1)
     else:
-        df_batching2 = smTble.filter(regex='Mean', axis=1)
+        df_batching2 = smTble.filter(regex='(Mean|Median)', axis=1)
     df_batching2 = df_batching2.loc[:, df_batching2.nunique() > 1]
 
     # BoxCox transformation
@@ -136,7 +137,7 @@ def collect_and_transform(df, batchName):
     plt.close()
 
     # QQ plots for each marker (4 per page)
-    colNames = [x for x in df.columns if 'Mean' in x]
+    colNames = [x for x in df.columns if ('Mean' in x or 'Median' in x)]
     nuc_cols = [x for x in colNames if nucMark in x]
     if not nuc_cols:
         raise ValueError(f"No column found containing nucleus marker '{nucMark}' in columns: {colNames}")
@@ -162,6 +163,21 @@ def collect_and_transform(df, batchName):
         plt.savefig(f"normlize_qrq_{i}.png")
         plt.close()
     bcDf.to_csv(f"{batchName}_boxcox_mod.tsv", sep="\t", index=False)
+
+    if grouping_column not in df_batching.columns:
+        raise ValueError(f"Grouping column '{grouping_column}' not found in columns: {list(df_batching.columns)}")
+
+    # Limit groups for plotting
+    max_groups = 50
+    unique_groups = df_melted[grouping_column].unique()
+    if len(unique_groups) > max_groups:
+        print(f"Too many groups ({len(unique_groups)}). Limiting to first {max_groups}.")
+        keep_groups = set(unique_groups[:max_groups])
+        df_melted = df_melted[df_melted[grouping_column].isin(keep_groups)]
+        sns.boxplot(x=grouping_column, y='value', color="#50C878", data=df_melted, showfliers=False)
+        plt.legend([],[], frameon=False)
+    else:
+        sns.boxplot(x=grouping_column, y='value', color="#50C878", data=df_melted, showfliers=False)
 
 def generate_pdf_report(outfilename, batchName):
     WIDTH = 215.9
@@ -189,8 +205,39 @@ def generate_pdf_report(outfilename, batchName):
     pdf.image('boxcox_delta_values.png', w=WIDTH)
     pdf.output(outfilename, 'F')
 
+def get_needed_columns(file_path, grouping_column, nucMark, quantType):
+    """Scan the header and return only columns needed for analysis."""
+    with open(file_path) as f:
+        header = f.readline().strip().split('\t')
+    needed = set()
+    # Always need the grouping column
+    if grouping_column in header:
+        needed.add(grouping_column)
+    # Add all columns with 'Mean', 'Median', or the nucleus marker
+    for col in header:
+        if 'Mean' in col or 'Median' in col or nucMark in col:
+            needed.add(col)
+    return list(needed)
+
 if __name__ == "__main__":
-    myData = pd.read_csv(quant_table, sep="\t", low_memory=False)
+    file_size_mb = os.path.getsize(quant_table) / (1024 * 1024)
+    print(f"Input file size: {file_size_mb:.1f} MB")
+    if file_size_mb > 800:
+        print("Large file detected, reading only needed columns.")
+        needed_cols = get_needed_columns(quant_table, grouping_column, nucMark, quantType)
+        myData = pd.read_csv(quant_table, sep="\t", usecols=needed_cols, low_memory=True)
+    else:
+        myData = pd.read_csv(quant_table, sep="\t", low_memory=False)
+    # Clean column names: remove anything in parentheses (and the parentheses)
+    myData.columns = [re.sub(r'\s*\([^)]*\)', '', col) for col in myData.columns]
+    print("Columns after cleaning:", list(myData.columns))
+
+    # Ensure grouping_column exists; if not, add a synthetic group
+    if grouping_column not in myData.columns:
+        print(f"Grouping column '{grouping_column}' not found. Treating all data as a single group.")
+        grouping_column = "__ALL__"
+        myData[grouping_column] = "all"
+    
     filename = os.path.basename(quant_table)
 
     if hasFOV:
@@ -212,10 +259,15 @@ if __name__ == "__main__":
         myFileIdx = f"{first_part}_{fov_part}"
     else:
         myFileIdx = filename.split('_')[0]
+
+    # Inserted code: append subset number if present in filename
+    subset_match = re.search(r'_subset(\d+)', filename)
+    if subset_match:
+        myFileIdx += f"_subset{subset_match.group(1)}"
             
     collect_and_transform(myData, myFileIdx)
     generate_pdf_report(f"boxcox_report_{myFileIdx}.pdf", myFileIdx)
 
 
 
-
+filename = "SLIDE-3176_FullPanel_QUANT_split1_mod.tsv"
