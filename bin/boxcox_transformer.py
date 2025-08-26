@@ -239,35 +239,15 @@ if __name__ == "__main__":
         myData[grouping_column] = "all"
     
     filename = os.path.basename(quant_table)
+    # Remove extension and trailing .ome/.tiff/.tif if present
+    myFileIdx = re.sub(r'(\.ome)?(\.tiff|\.tif|\.[^.]+)$', '', filename, flags=re.IGNORECASE)
 
-    if hasFOV:
-        first_part = filename.split('_')[0]
-        match = re.search(r'___(\d{3})\.ome', filename)
-        if match:
-            fov_part = match.group(1)
-        else:
-            match = re.search(r'(\d{3})\.ome', filename)
-            if match:
-                fov_part = match.group(1)
-            else:
-                match = re.search(r'(\d{3})_-_split', filename)
-                if match:
-                    fov_part = f"{match.group(1)}_split"
-                else:
-                    split_count = filename.count("split")
-                    fov_part = f"UNK_{split_count}"
-        myFileIdx = f"{first_part}_{fov_part}"
-    else:
-        myFileIdx = filename.split('_')[0]
-
-    # Inserted code: append subset number if present in filename
+    # Append subset number if present in filename
     subset_match = re.search(r'_subset(\d+)', filename)
     if subset_match:
         myFileIdx += f"_subset{subset_match.group(1)}"
-            
+    
     collect_and_transform(myData, myFileIdx)
     generate_pdf_report(f"boxcox_report_{myFileIdx}.pdf", myFileIdx)
-
-
 
 filename = "SLIDE-3176_FullPanel_QUANT_split1_mod.tsv"
