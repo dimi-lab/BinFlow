@@ -76,11 +76,11 @@ process MERGE_TRAINING_BY_MARKER {
     tuple val(mark), path(training_files)
 
     output:
-    path("${mark}_all.tsv"), emit: merged
+    path("*_all.tsv"), emit: merged
 
     script:
     """
-    merge_training.py ${mark}_all.tsv
+    merge_training.py "${mark}_all.tsv"
     """
 }
 
