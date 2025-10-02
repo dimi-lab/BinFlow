@@ -27,7 +27,10 @@ def filter_and_reduce_labels(df, label_column, label_prefix):
         # Filter list for matching labels
         if not isinstance(label_list, list):
             return ""
-        filtered = [label for label in label_list if label.lower().startswith(label_prefix_lower)]
+        filtered = [
+            label for label in label_list
+            if re.match(rf"^{re.escape(label_prefix_lower)}(?![a-zA-Z])", label.lower()) # updated to avoid catching CD45RA and CD45RO for CD45
+            ] 
         return "|".join(filtered)
 
     # Apply the filter to the specified column

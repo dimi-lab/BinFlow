@@ -17,7 +17,7 @@ def find_unpaired_columns(df):
     return {"paired": sorted(paired), "unpaired": sorted(unpaired)}
 
 
-def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missing=True, min_selection=5, prec_threshold=5):
+def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missing=True, min_selection=5, prec_threshold=5, delimiter='|', singleLabelColumn='Classification'):
     """
     Processes the counts_df to determine which "-" suffix columns to modify in df.
     If add_only_missing is True, only modifies columns where the first-row count is <= 1.
@@ -31,6 +31,25 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
     Returns:
     - pd.DataFrame: The modified DataFrame.
     """
+
+    def unique_pipe_values(s: str, delim) -> str:
+        parts = s.split(delim)
+        seen = set()
+        unique = [p for p in parts if p and not (p in seen or seen.add(p))]
+        return delim.join(unique) + (delim if s.endswith(delim) else '')
+    
+    def get_valid_indices(filtered_df, col_substring, class_col='Classification', n=5, random_state=None):
+        classification_str = filtered_df[class_col].astype(str)
+        condition = (
+            filtered_df[class_col].isna() |
+            ~classification_str.str.contains(col_substring, na=False)
+        )
+        valid_rows = filtered_df[condition]
+        random.seed(random_state)
+        valid_df =  random.sample(list(valid_rows.index), n) if n > 0 else []
+        if not valid_df:
+            return random.sample(list(filtered_df.index), n) if n > 0 else []
+        return valid_df
     
     # Identify columns with "-" suffix
     negative_cols = [col for col in counts_df.columns if col.endswith("-")]
@@ -44,7 +63,11 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
         if not matching_cols:
             print(f"Warning: No matching 'Median' column found for {col}, skipping.")
             continue
-        median_col = matching_cols[0]  # Select the first match
+
+        median_col = matching_cols[0]
+        #### ISSUE: median_col = next((col for col in matching_cols if "Cell:" in col), None) # switching to identify "Cell:"
+        if not median_col:
+            median_col = matching_cols[0]  # Select the first match -> typically will be Nucleus
 
         # Compute the 0.2 percentile threshold
         percentile_threshold = np.percentile(df[median_col].dropna(), prec_threshold)
@@ -54,13 +77,15 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
 
         # Select random indices from the filtered rows
         num_samples = min(min_selection, len(filtered_rows))  # Choose up to 5 samples
-        random_indices = random.sample(list(filtered_rows.index), num_samples) if num_samples > 0 else []
+        random_indices = get_valid_indices(filtered_rows, col, singleLabelColumn, n=num_samples)
+        #random_indices = random.sample(list(filtered_rows.index), num_samples) if num_samples > 0 else []
 
         # Modify "Classification" column for selected rows
         for idx in random_indices:
             current_class = df.at[idx, "Classification"]
             new_value = col if pd.isna(current_class) or current_class == "" else f"{current_class}|{col}"
-            df.at[idx, "Classification"] = new_value
+            final_value = unique_pipe_values(new_value, delimiter) # Added check for duplicate values in negative labels & remove
+            df.at[idx, "Classification"] = final_value
 
     # Save the modified df with "_mod.tsv" suffix
     write_split_files(df, output_filename)
@@ -94,7 +119,7 @@ if __name__ == "__main__":
     singleLabelColumn = sys.argv[6]
     keptContextColumns = [col.strip() for col in sys.argv[7].split(",")]
 
-    label_delimiter = "|"  # Still hardcoded, change if needed
+    label_delimiter = "|"  # ISSUE: Still hardcoded, change if needed
 
     countsTable = pd.read_csv(counts_tsv, sep="\t")
     # Only read singleLabelColumn, keptContextColumns, and relevant 'Median' columns
@@ -112,7 +137,7 @@ if __name__ == "__main__":
         write_split_files(df, fhName)
         sys.exit(0)
     else:
-        process_counts_and_modify_df(thisFocus, df, fhName, add_only_missing, n_cells_to_label, below_percentile)
+        process_counts_and_modify_df(thisFocus, df, fhName, add_only_missing, n_cells_to_label, below_percentile, label_delimiter, singleLabelColumn) # Added label_delimiter
 
     colGroups = find_unpaired_columns(thisFocus)
     print("Paired:", colGroups["paired"])
