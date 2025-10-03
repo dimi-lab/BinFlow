@@ -21,7 +21,10 @@ y_col = "Centroid Y µm"
 for pred_col in prediction_cols:
     plt.figure()
     # Use unique values in the prediction column for coloring
-    unique_vals = df[pred_col].unique()
+    unique_vals = sorted(
+        df[pred_col].unique(),
+        key=lambda x: (str(x).rstrip("+-"), str(x).endswith("+")) # ensure that "-" comes before "+"
+        )
     for val in unique_vals:
         mask = df[pred_col] == val
         plt.scatter(df.loc[mask, x_col], df.loc[mask, y_col], label=str(val), alpha=0.7)
