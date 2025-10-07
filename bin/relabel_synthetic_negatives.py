@@ -38,7 +38,26 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
         unique = [p for p in parts if p and not (p in seen or seen.add(p))]
         return delim.join(unique) + (delim if s.endswith(delim) else '')
     
-    def get_valid_indices(filtered_df, col_substring, class_col='Classification', n=5, random_state=None):
+    def get_valid_indices(filtered_df, col_substring, class_col=singleLabelColumn, n=5, random_state=None):
+        classification_str = filtered_df[class_col].astype(str)
+        condition = (
+            filtered_df[class_col].isna() |
+            ~classification_str.str.contains(col_substring, na=False)
+        )
+        valid_rows = filtered_df[condition]
+        random.seed(random_state)
+        valid_df =  random.sample(list(valid_rows.index), n) if n > 0 else []
+        if not valid_df:
+            return random.sample(list(filtered_df.index), n) if n > 0 else []
+        return valid_df
+    
+    def unique_pipe_values(s: str, delim) -> str:
+        parts = s.split(delim)
+        seen = set()
+        unique = [p for p in parts if p and not (p in seen or seen.add(p))]
+        return delim.join(unique) + (delim if s.endswith(delim) else '')
+    
+    def get_valid_indices(filtered_df, col_substring, class_col=singleLabelColumn, n=5, random_state=None):
         classification_str = filtered_df[class_col].astype(str)
         condition = (
             filtered_df[class_col].isna() |
@@ -64,8 +83,8 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
             print(f"Warning: No matching 'Median' column found for {col}, skipping.")
             continue
 
-        median_col = matching_cols[0]
-        #### ISSUE: median_col = next((col for col in matching_cols if "Cell:" in col), None) # switching to identify "Cell:"
+        # median_col = matching_cols[0]
+        median_col = next((col for col in matching_cols if "Cell:" in col), None) # switching to identify "Cell:"
         if not median_col:
             median_col = matching_cols[0]  # Select the first match -> typically will be Nucleus
 
@@ -78,14 +97,14 @@ def process_counts_and_modify_df(counts_df, df, output_filename, add_only_missin
         # Select random indices from the filtered rows
         num_samples = min(min_selection, len(filtered_rows))  # Choose up to 5 samples
         random_indices = get_valid_indices(filtered_rows, col, singleLabelColumn, n=num_samples)
-        #random_indices = random.sample(list(filtered_rows.index), num_samples) if num_samples > 0 else []
+        # random_indices = random.sample(list(filtered_rows.index), num_samples) if num_samples > 0 else []
 
         # Modify "Classification" column for selected rows
         for idx in random_indices:
-            current_class = df.at[idx, "Classification"]
+            current_class = df.at[idx, singleLabelColumn]
             new_value = col if pd.isna(current_class) or current_class == "" else f"{current_class}|{col}"
             final_value = unique_pipe_values(new_value, delimiter) # Added check for duplicate values in negative labels & remove
-            df.at[idx, "Classification"] = final_value
+            df.at[idx, singleLabelColumn] = final_value
 
     # Save the modified df with "_mod.tsv" suffix
     write_split_files(df, output_filename)

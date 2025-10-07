@@ -92,6 +92,7 @@ process REPORT_PER_IMAGE {
 
     input:
     tuple val(image_id), path(merged_file)
+    path(quant_file_inputDir)
 
     output:
     path("*.png"), emit: plots
@@ -99,13 +100,14 @@ process REPORT_PER_IMAGE {
 
     script:
     """
-    generate_reports_per_image.py ${merged_file} ${image_id}
+    generate_reports_per_image.py ${merged_file} ${image_id} ${quant_file_inputDir}
     """
 }
 
 workflow supervised_wf {
 	take: 
     tablesOfQuantification
+    input_dir
 	
 	main:
 	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification.flatten())
@@ -143,7 +145,7 @@ workflow supervised_wf {
     merged = MERGE_BY_PRED_IMAGE(merged_input)
 	//merged.view()
     
-    report = REPORT_PER_IMAGE(merged)
+    report = REPORT_PER_IMAGE(merged, input_dir)
 }
 
 

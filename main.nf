@@ -175,7 +175,7 @@ workflow {
             modTables = BOXCOX_TRANSFORM(modTables)
         }
         
-        supervised_wf(modTables.quant_files)
+        supervised_wf(modTables.quant_files, params.input_dir)
     }
     
 }
