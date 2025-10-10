@@ -31,6 +31,7 @@ image_id = sys.argv[2]
 qFile_path = sys.argv[3]
 df = pd.read_csv(merged_file, sep='\t')
 df.columns = [clean_pred_columns(col) for col in df.columns] # drop the "_##" at the end of the prediction columns
+df['Inverted Centroid Y µm'] = df['Centroid Y µm'].max() - df['Centroid Y µm']
 img_id = re.sub(r'_boxcox_mod\.tsv$', '', image_id)
 binary_dir = os.path.dirname(os.path.realpath(merged_file))
 print(binary_dir)
@@ -45,7 +46,7 @@ roc_files = []
 # Find prediction columns
 prediction_cols = [col for col in df.columns if col.startswith("Prediction")]
 x_col = "Centroid X µm"
-y_col = "Centroid Y µm"
+y_col = "Inverted Centroid Y µm"
 
 for pred_col in prediction_cols:
     plt.figure()
@@ -90,6 +91,7 @@ for pFile in pFiles:
     cols_to_keep += ['Centroid X µm', 'Centroid Y µm']
     image_df = pd.read_csv(image_file, usecols=cols_to_keep, sep='\t') # Read only those columns
     merge_df = prob_df.merge(image_df, on = ['Centroid X µm', 'Centroid Y µm'])
+    hue_vals = [label + x for x in ['-', '+']]
     # Plot
     x_col = label + ': Cell: Median'
     y_col = 'Probabilities'
@@ -105,7 +107,7 @@ for pFile in pFiles:
     plt.close()  # Close the temp plot
 
     g = sns.lmplot(
-        x=x_col, y=y_col, hue='Predictions', data=merge_df, logistic=False,
+        x=x_col, y=y_col, hue='Predictions', hue_order=hue_vals, data=merge_df, logistic=False,
         scatter_kws={'alpha': 0.6}, y_jitter=0.025, legend=False, fit_reg=False # main data plot with hue (no regression lines)
     )
     ax = g.ax
@@ -134,8 +136,8 @@ with open(f"{img_id}_report.html", "w") as f:
         f.write(f"<h2>{id_}</h2>\n")
         f.write('<div style="display: flex; gap: 20px;">\n')
         if id_ in plot_dict:
-            f.write(f'<div><img src="{plot_dict[id_]}" alt="{plot_dict[id_]}" width="400"></div>\n')
+            f.write(f'<div><img src="{plot_dict[id_]}" alt="{plot_dict[id_]}" height="400"></div>\n')
         if id_ in curve_dict:
-            f.write(f'<div><img src="{curve_dict[id_]}" alt="{curve_dict[id_]}" width="400"></div>\n')
+            f.write(f'<div><img src="{curve_dict[id_]}" alt="{curve_dict[id_]}" height="400"></div>\n')
         f.write('</div><hr>\n')
     f.write("</body></html>")
