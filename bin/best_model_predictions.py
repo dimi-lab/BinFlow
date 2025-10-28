@@ -29,10 +29,11 @@ def prepare_data(df, model):
 # Make predictions
 def make_predictions(model, data):
     predictions = model.predict(data)
-    return predictions
+    prediction_probas = model.predict_proba(data)[:,1]
+    return predictions, prediction_probas
 
 # Save the output with only 'Centroid' columns and predictions
-def save_predictions(df, predictions, output_path):
+def save_predictions(df, predictions, probabilities, output_path):
     centroid_and_image_columns = [col for col in df.columns if "centroid" in col.lower() or "image" in col.lower()]
     if not centroid_and_image_columns:
         raise ValueError(f"No centroid or image columns found in input DataFrame. Columns present: {list(df.columns)}")
@@ -41,6 +42,7 @@ def save_predictions(df, predictions, output_path):
         df_output['Predictions'] = ["NA"] * len(df_output)
     else:
         df_output['Predictions'] = predictions
+        df_output['Probabilities'] = probabilities # added Probabilities for showing output curve
     df_output.to_csv(output_path, sep='\t', index=False)
     print(f"Predictions saved to {output_path}")
 
@@ -54,8 +56,8 @@ def main(model_path, input_data_path, output_path):
     if data_for_prediction is None:
         save_predictions(df, None, output_path)
     else:
-        predictions = make_predictions(model, data_for_prediction)
-        save_predictions(df, predictions, output_path)
+        predictions, probabilities = make_predictions(model, data_for_prediction)
+        save_predictions(df, predictions, probabilities, output_path)
 
 def extract_marker(filename):
     parts = filename.split("_")

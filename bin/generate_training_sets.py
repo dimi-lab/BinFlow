@@ -29,7 +29,7 @@ def filter_and_reduce_labels(df, label_column, label_prefix):
             return ""
         filtered = [
             label for label in label_list
-            if re.match(rf"^{re.escape(label_prefix_lower)}(?![a-zA-Z])", label.lower()) # updated to avoid catching CD45RA and CD45RO for CD45
+            if re.match(rf"^{re.escape(label_prefix_lower)}(\+|-)?$", label.strip(), re.IGNORECASE) # updated to avoid catching CD45RA and CD45RO for CD45 or CD31 for CD3
             ] 
         return "|".join(filtered)
 
