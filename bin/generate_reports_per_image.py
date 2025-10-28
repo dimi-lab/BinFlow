@@ -95,19 +95,23 @@ for pFile in pFiles:
     # Plot
     x_col = label + ': Cell: Median'
     y_col = 'Probabilities'
-    tmp = sns.lmplot(
-        x=x_col, y=y_col, data=merge_df, logistic=True,
-        line_kws={'color': 'black'}, ci=None
-    )
-    # Generate new plt.figure()
-    plt.figure()
-    # Get the line data
-    reg_line = tmp.ax.lines[0].get_data()
-    x_fit, y_fit = reg_line  # x and y of the regression line
-    plt.close()  # Close the temp plot
+    if x_col not in merge_df.columns:
 
-    g = sns.lmplot(
-        x=x_col, y=y_col, hue='Predictions', hue_order=hue_vals, data=merge_df, logistic=False,
+        print(f"[WARN] Skipping plot: column '{x_col}' not found in DataFrame.")
+    else:
+        tmp = sns.lmplot(
+            x=x_col, y=y_col, data=merge_df, logistic=True,
+            line_kws={'color': 'black'}, ci=None
+        )
+        # Generate new plt.figure()
+        plt.figure()
+        # Get the line data
+        reg_line = tmp.ax.lines[0].get_data()
+        x_fit, y_fit = reg_line  # x and y of the regression line
+        plt.close()  # Close the temp plot
+
+        g = sns.lmplot(
+            x=x_col, y=y_col, hue='Predictions', hue_order=hue_vals, data=merge_df, logistic=False,
         scatter_kws={'alpha': 0.6}, y_jitter=0.025, legend=False, fit_reg=False # main data plot with hue (no regression lines)
     )
     ax = g.ax
