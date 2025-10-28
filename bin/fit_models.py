@@ -5,6 +5,8 @@ import numpy as np
 import os, sys
 import re
 import pickle
+from dask.distributed import Client
+from joblib import parallel_backend
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, StratifiedShuffleSplit
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.linear_model import LogisticRegression
@@ -15,6 +17,8 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from sklearn.impute import SimpleImputer
 from fpdf import FPDF
 from pprint import pprint
+from dask.distributed import Client
+from joblib import parallel_backend
 
 def preprocess_data(df, label_column='key_label'):
     # Strip whitespace from column names
@@ -127,29 +131,40 @@ def evaluate_models(models, X_train, X_test, y_train, y_test, nom):
     # pos_lbl = nom + '+'
     y_train_bin = np.array([1 if str(label).endswith('+') else 0 for label in y_train])
     y_test_bin = np.array([1 if str(label).endswith('+') else 0 for label in y_test])
+    pprint(models)
 
+    best_model_obj = None
     for name, model in models.items():
+        fit_success = True
         try:
             model.fit(X_train, y_train_bin)
         except Exception as e:
-            print(f'Error during model fitting: {e}')
-        y_pred = model.predict(X_test)
-        accuracy = accuracy_score(y_test_bin, y_pred)
-        f1 = f1_score(y_test_bin, y_pred, average='binary')
-        results[name] = {
-            'model': model,
-            'best_params': model.best_params_,
-            'accuracy': accuracy,
-            'f1-score': f1,
-            'classification_report': classification_report(y_test_bin, y_pred, zero_division=0, output_dict=True),
-            'confusion_matrix': confusion_matrix(y_test_bin, y_pred)
-        }
-        if f1 > best_f1:
-            best_f1 = f1
-            best_model_name = name
-            best_model_obj = model.best_estimator_
+            print(f'Error during model fitting for {name}: {e}')
+            fit_success = False
+        if fit_success:
+            try:
+                y_pred = model.predict(X_test)
+                accuracy = accuracy_score(y_test_bin, y_pred)
+                f1 = f1_score(y_test_bin, y_pred, average='binary')
+                results[name] = {
+                    'model': model,
+                    'best_params': model.best_params_,
+                    'accuracy': accuracy,
+                    'f1-score': f1,
+                    'classification_report': classification_report(y_test_bin, y_pred, zero_division=0, output_dict=True),
+                    'confusion_matrix': confusion_matrix(y_test_bin, y_pred)
+                }
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_model_name = name
+                    best_model_obj = model.best_estimator_
+            except Exception as e:
+                print(f'Error during prediction for {name}: {e}')
+                results[name] = {'model': model, 'error': str(e)}
+        else:
+            results[name] = {'model': model, 'error': 'Model fitting failed'}
 
-    if best_model_obj:
+    if best_model_obj is not None:
         with open(f"{best_model_name}_best_model_{nom}.pkl", 'wb') as f:
             pickle.dump(best_model_obj, f)
 
@@ -179,6 +194,11 @@ if __name__ == "__main__":
         sys.exit(1)
     print(f"X Shape = {X.shape}")
 
+    # Check and create output directory if needed
+    out_dir = os.path.dirname(os.path.abspath(training_df))
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y) # Added Stratification for split
     sss_cv = StratifiedShuffleSplit(n_splits = 5, random_state = 911)
     print(f"X_train Shape = {X_train.shape}")
@@ -186,7 +206,14 @@ if __name__ == "__main__":
     print(f"Features for Pipeline = {', '.join(numeric_cols)}")
     preprocessor = build_pipelines(numeric_cols)
     models = build_models(preprocessor, cv = sss_cv)
+
+    ### This code is only for the SLURM??
+    # Start Dask client and use Dask as parallel backend
+    #client = Client()
+    #print(f"Dask client started: {client}")
+    #with parallel_backend('dask'):
     results = evaluate_models(models, X_train, X_test, y_train, y_test, lblName)
+
     pprint(results)
 
 
