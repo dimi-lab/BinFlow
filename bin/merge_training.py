@@ -6,7 +6,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: merge_training.py <output_name>")
         sys.exit(1)
-    outname = sys.argv[1]
+    outname = sys.argv[1].replace(' ', '_')
 
     import glob
     import pandas as pd

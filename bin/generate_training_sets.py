@@ -114,10 +114,18 @@ def process_files(input_files, label_column, label_delimiter):
 
     # Write the child table to a TSV file
     # Save each merged table to a file
+    import json
     for label, table in label_tables.items():
-        filename = f"training_{label}_{rand_suffix}.tsv"
-        table.to_csv(filename, sep='\t', index=False)
-        print(f"Saved {filename}")
+        if table.shape[1] <= 5:
+            # Too few columns, write JSON with column names instead
+            json_filename = f"training_{label}_{rand_suffix}_columns.json"
+            with open(json_filename, 'w') as jf:
+                json.dump({"columns": list(table.columns)}, jf, indent=2)
+            print(f"Table for label {label} has {table.shape[1]} columns (<=5). Wrote column names to {json_filename}")
+        else:
+            filename = f"training_{label}_{rand_suffix}.tsv"
+            table.to_csv(filename, sep='\t', index=False)
+            print(f"Saved {filename}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
