@@ -147,10 +147,20 @@ workflow supervised_wf {
 	fitting = BINARY_MODEL_TRAINING(merged_training.merged)
 	//fitting.view()
 	
-	pairs = fitting.model.combine(tablesOfQuantification.flatMap { it })
+	keyed_models = fitting.map { model_file ->
+		def marker = model_file.baseName.replaceFirst(/_best_model.*/, '')
+		tuple(marker, model_file)
+	}
+
+	keyed_tables = tablesOfQuantification.flatMap { it }.map { quant_file ->
+		def marker = quant_file.baseName // adjust this extraction as needed
+		tuple(marker, quant_file)
+	}
+
+	pairs = keyed_models.combine(keyed_tables)
     //pairs.view()
     // pairs is a tuple of (best_model, original_df)
-    predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[0] }, pairs.map { it[1] })
+    predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[1] }, pairs.map { it[2] })
 
     // Group predictions by image_id (the first value in the tuple)
     merged_input = predict.classifications.groupTuple().map { id, files -> tuple(id, files instanceof List ? files : [files]) } //.distinct()
