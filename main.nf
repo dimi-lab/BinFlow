@@ -211,10 +211,10 @@ process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
     )
 
     input:
-    tuple path(merged_file), val(context_tables)
+    tuple val(image_id), path(merged_file), val(context_tables)
 
     output:
-    path("*_FINAL.tsv"), emit: merged_with_context
+    tuple val(image_id), path("*_FINAL.tsv"), emit: merged_with_context
     path("*_final_recombine_report.html"), emit: html_report
 
     script:
@@ -251,7 +251,8 @@ workflow {
         
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
-        boosted = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
+        boost_inputs = inputTables.combine(recount.count)
+        boosted = BOOST_NEGATIVE_LABELS(boost_inputs)
         boosted_quant = boosted.quant_files
 
         preprocessed_input_quant = boosted_quant
@@ -265,7 +266,10 @@ workflow {
         marker_recovery_wf(preprocessedTables.quant_files.collect())
         supervised_out = supervised_wf(preprocessedTables.quant_files, params.input_dir)
 
-        RECOMBINE_PREDICTIONS_WITH_CONTEXT(supervised_out.merged_tables, preprocessedTables.quant_files.collect())
+        context_tables = preprocessedTables.quant_files.collect()
+        final_merge_inputs = supervised_out.merged_tables.combine(context_tables)
+            .map { image_id, merged_file, context_list -> tuple(image_id, merged_file, context_list) }
+        RECOMBINE_PREDICTIONS_WITH_CONTEXT(final_merge_inputs)
     }
     
 }
