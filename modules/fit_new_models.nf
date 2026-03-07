@@ -124,22 +124,17 @@ workflow supervised_wf {
     input_dir
 	
 	main:
-	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification.flatten())
+	trainingMk = GET_SINGLE_MARKER_TRAINING_DF(tablesOfQuantification)
 	//trainingMk.flatMap{ it }.view()
 	
     // Group training files by their basename (e.g., training_CD68.tsv)
     grouped_training = trainingMk.trainingdata
-    .flatMap{ it }
-    .map { file -> 
+    .map { file ->
         def marker = file.baseName
-        def extension = file.extension ? ".${file.extension}" : "" // Handle files without extension
         if (marker =~ /_([a-zA-Z0-9]{8})$/) {
-            def newBaseName = marker[0..<(marker.length() - 9)] // -9 to remove '_' and 8 chars
-            return tuple(newBaseName, file)
-        } else {
-            // If the suffix pattern is not found, return the original file
-            return file
+            marker = marker[0..<(marker.length() - 9)] // remove '_' + 8-char suffix
         }
+        tuple(marker, file)
     }
     .groupTuple()
 
@@ -147,17 +142,7 @@ workflow supervised_wf {
 	fitting = BINARY_MODEL_TRAINING(merged_training.merged)
 	//fitting.view()
 	
-	keyed_models = fitting.map { model_file ->
-		def marker = model_file.baseName.replaceFirst(/_best_model.*/, '')
-		tuple(marker, model_file)
-	}
-
-	keyed_tables = tablesOfQuantification.flatMap { it }.map { quant_file ->
-		def marker = quant_file.baseName // adjust this extraction as needed
-		tuple(marker, quant_file)
-	}
-
-	pairs = keyed_models.combine(keyed_tables)
+	pairs = fitting.model.combine(tablesOfQuantification)
     //pairs.view()
     // pairs is a tuple of (best_model, original_df)
     predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[1] }, pairs.map { it[2] })
