@@ -93,7 +93,7 @@ process BOOST_NEGATIVE_LABELS{
       ${params.huerustic_negative_add_only_missing} \
       ${params.singleLabelColumn} \
       "${params.keptContextColumns.join(',')}"
-    out=$(ls *_mod.tsv | head -n1)
+    out=\$(ls *_mod.tsv | head -n1)
     build_html_report.py --title "Boost negative labels" --output boost_report.html --inputs ${quant_table} ${counts_tsv} $out
     mv boost_report.html ${quant_table.baseName}_boost_report.html
     """
@@ -136,13 +136,13 @@ process BOXCOX_TRANSFORM {
     script:
     """
     boxcox_transformer.py \
-      ${quant_table} \
-      ${params.qupath_object_type} \
-      ${params.nucleus_marker} \
-      ${params.transformation_group_by_column} \
-      ${params.letterhead} \
-      ${params.hasFOV}
-    out_tsv=$(ls *.tsv | head -n1)
+        ${quant_table} \
+        ${params.qupath_object_type} \
+        ${params.nucleus_marker} \
+        ${params.transformation_group_by_column} \
+        ${params.letterhead} \
+        ${params.hasFOV}
+    out_tsv=\$(ls *.tsv | head -n1)
     build_html_report.py --title "BoxCox transform" --output boxcox_report.html --inputs ${quant_table} $out_tsv
     mv boxcox_report.html boxcox_${quant_table.baseName}.html
     """
@@ -243,7 +243,6 @@ workflow {
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
         modTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
-        modTables = modTables.flatten()
         //modTables.view()
 
         quantForPreprocess = modTables

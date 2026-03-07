@@ -75,7 +75,7 @@ process MERGE_BY_PRED_IMAGE {
     script:
     """
     merge_preds.py ${image_id} ${pred_files}
-    out=$(ls *_MERGED.tsv | head -n1)
+    out=\$(ls *_MERGED.tsv | head -n1)
     build_html_report.py --title "Merge predictions by image" --output merge_report.html --inputs ${pred_files} $out
     mv merge_report.html ${image_id}_merge_report.html
     """
