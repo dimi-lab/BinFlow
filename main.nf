@@ -211,8 +211,7 @@ process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
     )
 
     input:
-    path(merged_file)
-    path(context_tables)
+    tuple path(merged_file), val(context_tables)
 
     output:
     path("*_FINAL.tsv"), emit: merged_with_context
@@ -220,17 +219,18 @@ process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
 
     script:
     def base = merged_file.baseName.replace('_MERGED','')
+    def ctx = context_tables.join(' ')
     """
     recombine_predictions_with_context.py \
       ${merged_file} \
-      --context-columns "${params.keptContextColumns.join(",")}" \
+      --context-columns "${params.keptContextColumns.join(',')}" \
       --output ${base}_FINAL.tsv \
-      ${context_tables}
+      ${ctx}
 
     build_html_report.py \
       --title "Final merged predictions with context" \
       --output ${base}_final_recombine_report.html \
-      --inputs ${merged_file} ${base}_FINAL.tsv ${context_tables}
+      --inputs ${merged_file} ${base}_FINAL.tsv ${ctx}
 
     """
 }
@@ -250,16 +250,16 @@ workflow {
         
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
-        boostedTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
-        quantForPreprocess = boostedTables.quant_files
+        boosted = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
+        boosted_quant = boosted.quant_files
 
-        quantForPreprocess = modTables
+        preprocessed_input_quant = boosted_quant
         if (params.use_boxcox_transformation) {
-            boxcoxTables = BOXCOX_TRANSFORM(quantForPreprocess)
-            quantForPreprocess = boxcoxTables.quant_files
+            boxcox = BOXCOX_TRANSFORM(boosted_quant)
+            preprocessed_input_quant = boxcox.quant_files
         }
 
-        preprocessedTables = PREPROCESS_QUANT_TABLE(quantForPreprocess)
+        preprocessedTables = PREPROCESS_QUANT_TABLE(preprocessed_input_quant)
 
         marker_recovery_wf(preprocessedTables.quant_files.collect())
         supervised_out = supervised_wf(preprocessedTables.quant_files, params.input_dir)
