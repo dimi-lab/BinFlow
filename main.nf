@@ -12,6 +12,7 @@ params.output_dir = "${projectDir}/output"
 // Import sub-workflows
 // include { nimbus_wf } from './modules/nimbus_wrapper'
 include { supervised_wf } from './modules/fit_new_models'
+include { marker_recovery_wf } from './modules/marker_recovery'
 
 //Static Assests for beautification
 params.letterhead = "${projectDir}/images/BinFlow_banner.PNG"
@@ -42,17 +43,19 @@ Required Arguments:
 process REPORT_PANEL_DESIGN {
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*.pdf"
+        pattern: "*.html"
     )
     input:
     path(tables_collected)
 
     output:
-    path("*.pdf")
+    path("*_panel_design_report.html"), emit: html_report
 
     script:
     """
     analyze_panel_design.py ${params.letterhead} ${tables_collected}
+    build_html_report.py --title "Panel design report" --output panel_design_report.html --inputs ${tables_collected}
+    mv panel_design_report.html ${tables_collected.baseName}_panel_design_report.html
     """
 }
 
@@ -62,10 +65,12 @@ process ALL_LABEL_COUNTS{
     
     output: 
     path("label_counts.tsv"), emit: count
+    path("label_counts_report.html"), emit: html_report
     
     script:
     """
     binary_counter.py label_counts.tsv ${params.singleLabelColumn} ${tables_collected}
+    build_html_report.py --title "All label counts" --output label_counts_report.html --inputs label_counts.tsv ${tables_collected}
     """
 }
 
@@ -76,6 +81,7 @@ process BOOST_NEGATIVE_LABELS{
     
     output: 
     path("*_mod.tsv"), emit: quant_files
+    path("*_boost_report.html"), emit: html_report
     
     script:
     """
@@ -87,13 +93,16 @@ process BOOST_NEGATIVE_LABELS{
       ${params.huerustic_negative_add_only_missing} \
       ${params.singleLabelColumn} \
       "${params.keptContextColumns.join(',')}"
+    out=$(ls *_mod.tsv | head -n1)
+    build_html_report.py --title "Boost negative labels" --output boost_report.html --inputs ${quant_table} ${counts_tsv} $out
+    mv boost_report.html ${quant_table.baseName}_boost_report.html
     """
 }
 
 process GET_ALL_LABEL_RECOUNTS{
     publishDir(
         path: "${params.output_dir}/reports/",
-        pattern: "*_table.tsv"
+        pattern: "*.html"
     )
     
     input:
@@ -101,10 +110,12 @@ process GET_ALL_LABEL_RECOUNTS{
 
     output: 
     path("*_table.tsv"), emit: count
+    path("recount_report.html"), emit: html_report
         
     script:
     """
     binary_table.py perlabel_table.tsv ${params.singleLabelColumn} ${tables_collected}
+    build_html_report.py --title "Per-label recount" --output recount_report.html --inputs perlabel_table.tsv ${tables_collected}
     """
 }
 
@@ -112,7 +123,7 @@ process GET_ALL_LABEL_RECOUNTS{
 process BOXCOX_TRANSFORM {
     publishDir(
         path: "${params.output_dir}/normalization_reports",
-        pattern: "*.pdf",
+        pattern: "*.html",
         mode: "copy"
     )
     input:
@@ -120,7 +131,7 @@ process BOXCOX_TRANSFORM {
 
     output:
     path("*.tsv"), emit: quant_files
-    path("boxcox_*.pdf")
+    path("boxcox_*.html"), emit: html_report
 
     script:
     """
@@ -131,6 +142,9 @@ process BOXCOX_TRANSFORM {
       ${params.transformation_group_by_column} \
       ${params.letterhead} \
       ${params.hasFOV}
+    out_tsv=$(ls *.tsv | head -n1)
+    build_html_report.py --title "BoxCox transform" --output boxcox_report.html --inputs ${quant_table} $out_tsv
+    mv boxcox_report.html boxcox_${quant_table.baseName}.html
     """
 }
 
@@ -140,6 +154,7 @@ process CHECK_LABEL_COUNTS {
 
     output:
     val(true), emit: labels_ok
+    path("label_check_report.html"), emit: html_report
 
     script:
     """
@@ -149,6 +164,74 @@ process CHECK_LABEL_COUNTS {
         exit 99
     fi
     echo true
+    cat > label_check_report.html <<EOF
+    <html><body><h1>Label count check</h1><p>Total labels: $total</p><p>Status: PASS</p></body></html>
+    EOF
+    """
+}
+
+
+process PREPROCESS_QUANT_TABLE {
+    publishDir(
+        path: "${params.output_dir}/preprocessing_reports",
+        pattern: "*.html",
+        mode: "copy"
+    )
+
+    input:
+    path(quant_table)
+
+    output:
+    path("*_preprocessed.tsv"), emit: quant_files
+    path("*_gmm_summary.csv"), emit: gmm_summary
+    path("*_gmm_summary.png"), emit: gmm_plot
+    path("*_preprocess_report.html"), emit: html_report
+
+    script:
+    def base = quant_table.baseName
+    """
+    preprocess_quant_table.py \
+      ${quant_table} \
+      --output-table ${base}_preprocessed.tsv \
+      --summary-csv ${base}_gmm_summary.csv \
+      --summary-plot ${base}_gmm_summary.png \
+      --seed ${params.preprocessing_seed} \
+      ${params.run_gmmgating ? '--run-gmmgating' : ''} \
+      ${params.run_powertransform ? '--run-powertransform' : ''}
+    build_html_report.py --title "Preprocess quant table" --output preprocess_report.html --inputs ${base}_preprocessed.tsv ${base}_gmm_summary.csv ${base}_gmm_summary.png ${quant_table}
+    mv preprocess_report.html ${base}_preprocess_report.html
+    """
+}
+
+
+process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
+    publishDir(
+        path: "${params.output_dir}/final_merged_predictions",
+        mode: "copy"
+    )
+
+    input:
+    tuple path(merged_file), val(context_tables)
+
+    output:
+    path("*_FINAL.tsv"), emit: merged_with_context
+    path("*_final_recombine_report.html"), emit: html_report
+
+    script:
+    def base = merged_file.baseName.replace('_MERGED','')
+    def ctx = context_tables.join(' ')
+    """
+    recombine_predictions_with_context.py \
+      ${merged_file} \
+      --context-columns "${params.keptContextColumns.join(',')}" \
+      --output ${base}_FINAL.tsv \
+      ${ctx}
+
+    build_html_report.py \
+      --title "Final merged predictions with context" \
+      --output ${base}_final_recombine_report.html \
+      --inputs ${merged_file} ${base}_FINAL.tsv ${ctx}
+
     """
 }
 
@@ -167,15 +250,23 @@ workflow {
         
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
-        modTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
-        modTables = modTables.flatten()
-        //modTables.view()
+        boosted = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
+        boosted_quant = boosted.quant_files
 
+        preprocessed_input_quant = boosted_quant
         if (params.use_boxcox_transformation) {
-            modTables = BOXCOX_TRANSFORM(modTables)
+            boxcox = BOXCOX_TRANSFORM(boosted_quant)
+            preprocessed_input_quant = boxcox.quant_files
         }
-        
-        supervised_wf(modTables.quant_files, params.input_dir)
+
+        preprocessedTables = PREPROCESS_QUANT_TABLE(preprocessed_input_quant)
+
+        marker_recovery_wf(preprocessedTables.quant_files.collect())
+        supervised_out = supervised_wf(preprocessedTables.quant_files, params.input_dir)
+
+        context_tables = preprocessedTables.quant_files.collect()
+        final_merge_inputs = supervised_out.merged_tables.combine(context_tables)
+        RECOMBINE_PREDICTIONS_WITH_CONTEXT(final_merge_inputs)
     }
     
 }
