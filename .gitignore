@@ -5,6 +5,8 @@ public
 results
 work
 output
+nextflow.b*.config
+
 
 ## Run info files:
 binflow_input_data.tsv
