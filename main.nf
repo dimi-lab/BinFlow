@@ -221,9 +221,17 @@ process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
     script:
     def base = merged_file.baseName.replace('_MERGED','')
     """
-    recombine_predictions_with_context.py       ${merged_file}       --context-columns "${params.keptContextColumns.join(',')}"       --output ${base}_FINAL.tsv       ${context_tables}
+    recombine_predictions_with_context.py \
+      ${merged_file} \
+      --context-columns "${params.keptContextColumns.join(",")}" \
+      --output ${base}_FINAL.tsv \
+      ${context_tables}
 
-    build_html_report.py       --title "Final merged predictions with context"       --output ${base}_final_recombine_report.html       --inputs ${merged_file} ${base}_FINAL.tsv ${context_tables}
+    build_html_report.py \
+      --title "Final merged predictions with context" \
+      --output ${base}_final_recombine_report.html \
+      --inputs ${merged_file} ${base}_FINAL.tsv ${context_tables}
+
     """
 }
 
@@ -242,12 +250,12 @@ workflow {
         
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
-        modTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
-        //modTables.view()
+        boostedTables = BOOST_NEGATIVE_LABELS(inputTables, recount.count)
+        quantForPreprocess = boostedTables.quant_files
 
         quantForPreprocess = modTables
         if (params.use_boxcox_transformation) {
-            boxcoxTables = BOXCOX_TRANSFORM(modTables)
+            boxcoxTables = BOXCOX_TRANSFORM(quantForPreprocess)
             quantForPreprocess = boxcoxTables.quant_files
         }
 
@@ -256,7 +264,9 @@ workflow {
         marker_recovery_wf(preprocessedTables.quant_files.collect())
         supervised_out = supervised_wf(preprocessedTables.quant_files, params.input_dir)
 
-        RECOMBINE_PREDICTIONS_WITH_CONTEXT(supervised_out.merged_tables, preprocessedTables.quant_files.collect())
+        context_tables = preprocessedTables.quant_files.collect()
+        final_merge_inputs = supervised_out.merged_tables.combine(context_tables)
+        RECOMBINE_PREDICTIONS_WITH_CONTEXT(final_merge_inputs)
     }
     
 }
