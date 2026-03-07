@@ -44,8 +44,7 @@ process PREDICTIONS_FROM_BEST_MODEL{
     )
     
     input:
-    path(best_model)
-    path(original_df)
+    tuple path(best_model), path(original_df)
     
     output: 
     tuple val(original_df.baseName), path("*_PRED.tsv"), emit: classifications
@@ -142,10 +141,9 @@ workflow supervised_wf {
 	fitting = BINARY_MODEL_TRAINING(merged_training.merged)
 	//fitting.view()
 	
-	pairs = fitting.model.combine(tablesOfQuantification)
-    //pairs.view()
-    // pairs is a tuple of (best_model, original_df)
-    predict = PREDICTIONS_FROM_BEST_MODEL(pairs.map { it[1] }, pairs.map { it[2] })
+	model_and_quant_pairs = fitting.model.combine(tablesOfQuantification)
+    // model_and_quant_pairs is a tuple of (best_model, original_df)
+    predict = PREDICTIONS_FROM_BEST_MODEL(model_and_quant_pairs)
 
     // Group predictions by image_id (the first value in the tuple)
     merged_input = predict.classifications.groupTuple().map { id, files -> tuple(id, files instanceof List ? files : [files]) } //.distinct()
@@ -160,5 +158,4 @@ workflow supervised_wf {
     merged_tables = merged.merged
     prediction_tables = predict.classifications
 }
-
 
