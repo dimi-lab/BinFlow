@@ -59,6 +59,20 @@ process REPORT_PANEL_DESIGN {
     """
 }
 
+
+process EXTRACT_LABEL_COLUMN {
+    input:
+    path(quant_table)
+
+    output:
+    tuple val(quant_table.baseName), path("*_label_only.tsv"), emit: label_tables
+
+    script:
+    """
+    extract_label_column.py ${quant_table} ${quant_table.baseName}_label_only.tsv ${params.singleLabelColumn}
+    """
+}
+
 process ALL_LABEL_COUNTS{
     input:
     path(tables_collected)
@@ -70,7 +84,7 @@ process ALL_LABEL_COUNTS{
     script:
     """
     binary_counter.py label_counts.tsv ${params.singleLabelColumn} ${tables_collected}
-    build_html_report.py --title "All label counts" --output label_counts_report.html --inputs label_counts.tsv ${tables_collected}
+    build_html_report.py --title "All label counts" --output label_counts_report.html --inputs label_counts.tsv
     """
 }
 
@@ -114,7 +128,7 @@ process GET_ALL_LABEL_RECOUNTS{
     script:
     """
     binary_table.py perlabel_table.tsv ${params.singleLabelColumn} ${tables_collected}
-    build_html_report.py --title "Per-label recount" --output recount_report.html --inputs perlabel_table.tsv ${tables_collected}
+    build_html_report.py --title "Per-label recount" --output recount_report.html --inputs perlabel_table.tsv
     """
 }
 
@@ -237,11 +251,14 @@ workflow {
         // Exit out and do not run anything else
         exit 1
     } else {
-        label_summary = ALL_LABEL_COUNTS(inputTables.collect())
+        label_only_tables = EXTRACT_LABEL_COLUMN(inputTables)
+        label_tables_for_counts = label_only_tables.label_tables.map { _, label_table -> label_table }
+
+        label_summary = ALL_LABEL_COUNTS(label_tables_for_counts.collect())
         CHECK_LABEL_COUNTS(label_summary.count) // This will exit if no labels are found
-        
+
         //REPORT_PANEL_DESIGN(inputTables)
-        recount = GET_ALL_LABEL_RECOUNTS(inputTables.collect())
+        recount = GET_ALL_LABEL_RECOUNTS(label_tables_for_counts.collect())
         boost_inputs = inputTables.combine(recount.count)
         boosted = BOOST_NEGATIVE_LABELS(boost_inputs)
         boosted_quant = boosted.quant_files
