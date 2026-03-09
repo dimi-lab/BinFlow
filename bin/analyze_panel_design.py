@@ -2,11 +2,8 @@
 
 import os
 import re
-import time
 import pandas as pd
 import matplotlib.pyplot as plt
-from fpdf import FPDF
-from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 
 
@@ -33,7 +30,7 @@ def load_selected_columns(file_path, chunk_size=40000):
     return allLnData
 
 
-def process_large_file(file_path, pdf_pages, stats_text, chunk_size=40000):
+def process_large_file(file_path, stats_text, output_prefix, chunk_size=40000):
     # Identify columns to keep
     for first_chunk in pd.read_csv(file_path, chunksize=1, low_memory=False, sep='\t'):
         columns = first_chunk.columns
@@ -86,7 +83,9 @@ def process_large_file(file_path, pdf_pages, stats_text, chunk_size=40000):
         ax.set_xlabel("Value", fontsize=12)
         ax.set_ylabel("Count", fontsize=12)
         plt.tight_layout()
-        pdf_pages.savefig(fig)
+        safe_marker = re.sub(r"[^A-Za-z0-9]+", "_", marker).strip("_")
+        out_png = f"{output_prefix}_{safe_marker}.png"
+        fig.savefig(out_png, dpi=150)
         plt.close(fig)
 
         # Compute statistics
@@ -106,13 +105,8 @@ def process_large_file(file_path, pdf_pages, stats_text, chunk_size=40000):
         stats_text.append("")
 
 
-def generate_histograms_and_stats(tsv_files, output_pdf, letterhead):
-    """
-    Generates histograms for markers from input TSV files and appends statistics
-    to a PDF report.
-    """
-    # Initialize PDF for combining plots
-    pdf_pages = PdfPages(output_pdf)
+def generate_histograms_and_stats(tsv_files, output_prefix):
+    """Generate histogram PNGs and a TSV statistics report."""
     stats_text = []
 
     for file in tsv_files:
@@ -120,7 +114,8 @@ def generate_histograms_and_stats(tsv_files, output_pdf, letterhead):
             file_size_mb = os.path.getsize(file) / (1024 * 1024)
             if file_size_mb > 800:
                 print(f"File {file} is large ({file_size_mb:.1f} MB), using chunked reading.")
-                process_large_file(file, pdf_pages, stats_text)
+                file_basename = os.path.basename(file).replace(".tsv", "")
+                process_large_file(file, stats_text, f"{output_prefix}_{file_basename}")
             else:
                 df = pd.read_csv(file, sep="\t", low_memory=False)
                 numeric_df = df.select_dtypes(include=["number"])
@@ -149,7 +144,8 @@ def generate_histograms_and_stats(tsv_files, output_pdf, letterhead):
                         ax.set_ylabel("Count", fontsize=8)
 
                     plt.tight_layout()
-                    pdf_pages.savefig(fig)  # Save the current figure to the PDF
+                    out_png = f"{output_prefix}_{file_basename}_group{idx+1}.png"
+                    fig.savefig(out_png, dpi=150)
                     plt.close(fig)
 
                 # Collect statistics for the file
@@ -166,45 +162,11 @@ def generate_histograms_and_stats(tsv_files, output_pdf, letterhead):
             print(f"Error processing {file}: {e}")
             continue
 
-    pdf_pages.close()
-
-    # Create a separate PDF with the text-based statistics
-    generate_statistics_pdf(stats_text, len(stats_text), "Statistics_Report.pdf", letterhead)
-
-    print(f"Histogram report saved as {output_pdf}")
-    print("Statistics report saved as Statistics_Report.pdf")
-
-
-def generate_statistics_pdf(stats_text, nMrks, output_pdf, letterhead):
-    """
-    Generates a PDF report for the collected statistics text.
-    """
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    if letterhead and os.path.exists(letterhead):
-        pdf.image(letterhead, 0, 0)
-    pdf.set_font("Arial", size=12)
-    
-    # Add title
-    pdf.set_font("Arial", size=16)
-    pdf.cell(200, 10, txt="Marker Analysis Report", ln=True, align='C')
-    # Add date of report
-    pdf.set_font('Helvetica', '', 14)
-    pdf.set_text_color(r=128,g=128,b=128)
-    today = time.strftime("%d/%m/%Y")
-    pdf.write(4, f'{today}')
-    # Add line break
-    pdf.ln(10) 
-    
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Total unique markers: {nMrks}", ln=True)
-
-    for line in stats_text:
-        pdf.cell(0, 10, txt=line, ln=True)
-
-    pdf.output(output_pdf)
-    print(f"Statistics PDF report saved as {output_pdf}")
+    stats_file = f"{output_prefix}_statistics.txt"
+    with open(stats_file, "w") as fh:
+        fh.write("\n".join(stats_text) + "\n")
+    print(f"Histogram PNGs saved with prefix {output_prefix}_*")
+    print(f"Statistics report saved as {stats_file}")
 
 
 if __name__ == "__main__":
@@ -212,9 +174,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: analyze_panel_design.py <letterhead> <tsv1> [<tsv2> ...]")
         sys.exit(1)
-    letterhead = sys.argv[1]
+    _letterhead = sys.argv[1]  # kept for CLI compatibility
     tsv_files = sys.argv[2:]
-    output_pdf = "Marker_Analysis_Report.pdf"
-    generate_histograms_and_stats(tsv_files, output_pdf, letterhead)
+    output_prefix = "Marker_Analysis_Report"
+    generate_histograms_and_stats(tsv_files, output_prefix)
 
 

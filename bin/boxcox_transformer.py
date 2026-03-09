@@ -2,13 +2,10 @@
 
 import os
 import re
-import time
-import fnmatch
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from fpdf import FPDF
 from scipy.stats import boxcox
 import sys
 
@@ -26,22 +23,6 @@ hasFOV = sys.argv[6].lower() == "true"
 
 #plotFraction = 0.25
 plotFraction = 0.05  # Try 5% for large files
-
-def create_title(title, pdf):
-    pdf.set_font('Helvetica', 'b', 20)
-    pdf.ln(40)
-    pdf.write(5, title)
-    pdf.ln(10)
-    pdf.set_font('Helvetica', '', 14)
-    pdf.set_text_color(r=128, g=128, b=128)
-    today = time.strftime("%d/%m/%Y")
-    pdf.write(4, f'{today}')
-    pdf.ln(10)
-
-def write_to_pdf(pdf, words):
-    pdf.set_text_color(r=0, g=0, b=0)
-    pdf.set_font('Helvetica', '', 12)
-    pdf.write(5, words)
 
 def get_max_value(df):
     values = df.values.flatten()
@@ -179,32 +160,6 @@ def collect_and_transform(df, batchName):
     else:
         sns.boxplot(x=grouping_column, y='value', color="#50C878", data=df_melted, showfliers=False)
 
-def generate_pdf_report(outfilename, batchName):
-    WIDTH = 215.9
-    pdf = FPDF()
-    pdf.add_page()
-    create_title(f"Log Transformation: {batchName}", pdf)
-    pdf.image(letterhead, 0, 0, WIDTH)
-    write_to_pdf(pdf, "Fig 1.a: Distribution of all markers combined summarized by biospecimen.")
-    pdf.ln(5)
-    pdf.image('original_marker_sample_boxplots.png', w=(WIDTH*0.95))
-    pdf.ln(15)
-    pdf.image('normlize_marker_sample_boxplots.png', w=(WIDTH*0.95))
-    pdf.ln(15)
-    pdf.add_page()
-    write_to_pdf(pdf, "Fig 5: Transformation Plots.")
-    pdf.ln(10)
-    for file in sorted(fnmatch.filter(os.listdir('.'), "normlize_qrq_*")):
-        pdf.image(file, w=WIDTH)
-        pdf.ln(5)
-    write_to_pdf(pdf, "Fig 3: Total cell population distributions.")
-    pdf.ln(10)
-    for file in sorted(fnmatch.filter(os.listdir('.'), "original_value_density_*")):
-        pdf.image(file, w=WIDTH)
-        pdf.ln(5)
-    pdf.image('boxcox_delta_values.png', w=WIDTH)
-    pdf.output(outfilename, 'F')
-
 def get_needed_columns(file_path, grouping_column, nucMark, quantType):
     """Scan the header and return only columns needed for analysis."""
     with open(file_path) as f:
@@ -248,6 +203,3 @@ if __name__ == "__main__":
         myFileIdx += f"_subset{subset_match.group(1)}"
     
     collect_and_transform(myData, myFileIdx)
-    generate_pdf_report(f"boxcox_report_{myFileIdx}.pdf", myFileIdx)
-
-filename = "SLIDE-3176_FullPanel_QUANT_split1_mod.tsv"

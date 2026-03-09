@@ -15,7 +15,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, f1_score
 from sklearn.impute import SimpleImputer
-from fpdf import FPDF
 from pprint import pprint
 from dask.distributed import Client
 from joblib import parallel_backend
