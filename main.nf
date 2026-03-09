@@ -106,8 +106,7 @@ process BOOST_NEGATIVE_LABELS{
       ${params.huerustic_negative_add_only_missing} \
       ${params.singleLabelColumn} \
       "${params.keptContextColumns.join(',')}"
-    out=\$(ls *_mod.tsv | head -n1)
-    build_html_report.py --title "Boost negative labels" --output boost_report.html --inputs ${quant_table} ${counts_tsv} $out
+    build_html_report.py --title "Boost negative labels" --output boost_report.html --inputs ${quant_table} ${counts_tsv} *_mod.tsv
     mv boost_report.html ${quant_table.baseName}_boost_report.html
     """
 }
@@ -155,8 +154,7 @@ process BOXCOX_TRANSFORM {
         ${params.transformation_group_by_column} \
         ${params.letterhead} \
         ${params.hasFOV}
-    out_tsv=\$(ls *.tsv | head -n1)
-    build_html_report.py --title "BoxCox transform" --output boxcox_report.html --inputs ${quant_table} $out_tsv
+    build_html_report.py --title "BoxCox transform" --output boxcox_report.html --inputs ${quant_table} *.tsv
     mv boxcox_report.html boxcox_${quant_table.baseName}.html
     """
 }
@@ -237,7 +235,6 @@ process RECOMBINE_PREDICTIONS_WITH_CONTEXT {
       --output ${base}_final_recombine_report.html \
       --inputs ${merged_file} ${base}_FINAL.tsv ${ctx}
 
-    build_html_report.py       --title "Final merged predictions with context"       --output ${base}_final_recombine_report.html       --inputs ${merged_file} ${base}_FINAL.tsv ${context_tables}
     """
 }
 
