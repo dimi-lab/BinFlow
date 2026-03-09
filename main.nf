@@ -18,7 +18,7 @@ include { marker_recovery_wf } from './modules/marker_recovery'
 params.letterhead = "${projectDir}/images/BinFlow_banner.PNG"
 
 // Build Input List of Batches
-Channel.fromPath("${params.input_dir}/*/", type: 'file')
+Channel.fromPath("${params.input_dir}/*.tsv", type: 'file')
 			.ifEmpty { error "No files found in ${params.input_dir}" }
 			.set { inputTables }
 			
@@ -76,8 +76,7 @@ process ALL_LABEL_COUNTS{
 
 process BOOST_NEGATIVE_LABELS{
     input:
-    path(quant_table)
-    path(counts_tsv)
+    tuple path(quant_table), path(counts_tsv)
     
     output: 
     path("*_mod.tsv"), emit: quant_files
@@ -158,15 +157,7 @@ process CHECK_LABEL_COUNTS {
 
     script:
     """
-    total=\$(awk 'NR>1 {sum+=\$2} END {print sum+0}' ${label_counts})
-    if [[ \$total -eq 0 ]]; then
-        echo 'ERROR: No labels found in any input file. Exiting workflow.'
-        exit 99
-    fi
-    echo true
-    cat > label_check_report.html <<EOF
-    <html><body><h1>Label count check</h1><p>Total labels: $total</p><p>Status: PASS</p></body></html>
-    EOF
+    check_label_counts.py ${label_counts}
     """
 }
 
