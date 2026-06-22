@@ -257,15 +257,15 @@ workflow {
         //REPORT_PANEL_DESIGN(inputTables)
         recount = GET_ALL_LABEL_RECOUNTS(label_tables_for_counts.collect())
         boost_inputs = inputTables.combine(recount.count)
+        //boost_inputs.view()
         boosted = BOOST_NEGATIVE_LABELS(boost_inputs)
         boosted_quant = boosted.quant_files
 
         preprocessed_input_quant = boosted_quant
         if (params.use_boxcox_transformation) {
-            boxcox = BOXCOX_TRANSFORM(boosted_quant)
-            preprocessed_input_quant = boxcox.quant_files
+            boxcox_results = BOXCOX_TRANSFORM(boosted_quant.flatten())
+            preprocessed_input_quant = boxcox_results.quant_files.flatten()
         }
-
         preprocessedTables = PREPROCESS_QUANT_TABLE(preprocessed_input_quant)
 
         marker_recovery_wf(preprocessedTables.quant_files.collect())
